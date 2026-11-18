@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827"><title>NVIDIA AI Video Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121d2e;--line:#26364d;--muted:#9aabc1;--green:#76b900;--white:#f4f7fb}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0b1220,#111d2d);font:15px system-ui,Arial;color:var(--white)}
+header{padding:22px 18px;border-bottom:1px solid var(--line);background:#0b1220d9;position:sticky;top:0;z-index:2}
+.wrap{max-width:920px;margin:auto;padding:0 14px}h1{font-size:22px;margin:0}header p{color:var(--muted);margin:5px 0 0;font-size:13px}
+main{padding:22px 0 60px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:17px;margin:0 0 15px}
+h2{font-size:17px;margin:0 0 13px}.hint{font-size:12px;color:var(--muted);line-height:1.5}
+label{display:block;font-weight:600;margin:13px 0 6px;font-size:13px}
+input,textarea,select{width:100%;background:#0b1422;color:var(--white);border:1px solid #33445d;border-radius:10px;padding:12px;font:inherit}
+textarea{min-height:110px;resize:vertical}button{border:0;border-radius:10px;padding:12px 15px;font-weight:700;background:var(--green);color:#101810;font-size:14px;cursor:pointer}
+button.secondary{background:#26364d;color:white}button:disabled{opacity:.5;cursor:wait}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:130px}
+.status{white-space:pre-wrap;background:#0a1320;border:1px solid var(--line);padding:12px;border-radius:10px;color:#cbd7e6;font-size:13px;min-height:42px}
+video{width:100%;border-radius:12px;background:#05080d;margin-top:12px}a{color:#a9d76b}footer{color:var(--muted);font-size:12px;text-align:center;padding:10px}
+</style></head>
+<body>
+<header><div class="wrap"><h1>🎬 NVIDIA AI Video Studio</h1><p>Studio percobaan pribadi • dibuat untuk penggunaan dari HP Android</p></div></header>
+<main class="wrap">
+<section class="card">
+<h2>1. Sambungkan NVIDIA</h2>
+<p class="hint">Masukkan API Key NVIDIA kamu. Kunci hanya disimpan di memori halaman selama tab ini terbuka dan dikirim melalui koneksi HTTPS ke backend milikmu. Jangan bagikan kunci atau screenshot-nya.</p>
+<label>Alamat website backend</label><input id="backend" placeholder="https://nama-worker.workers.dev" autocomplete="url">
+<label>API Key NVIDIA</label><input id="key" type="password" placeholder="nvapi-..." autocomplete="off">
+<p class="hint">Jangan gunakan API Key yang pernah terlihat di screenshot. Cabut kunci lama dan buat kunci baru.</p>
+</section>
+<section class="card">
+<h2>2. Buat cerita dan prompt</h2>
+<label>Ide video / cerita</label><textarea id="idea" placeholder="Contoh: Film animasi Roblox tentang noob yang diremehkan sultan, lalu membuktikan dirinya..."></textarea>
+<div class="row">
+<div><label>Model teks NVIDIA</label><input id="chatmodel" value="nvidia/llama-3.3-nemotron-super-49b-v1"></div>
+<div><label>Gaya video</label><select id="style"><option>Animasi 3D Roblox blocky</option><option>Animasi sinematik 3D</option><option>Fantasi sinematik</option><option>Realistis</option></select></div>
+</div>
+<button id="storyBtn">Buat naskah & prompt video</button>
+<label>Hasil naskah / prompt</label><textarea id="script" placeholder="Hasil AI akan muncul di sini..."></textarea>
+<div class="hint">Tahap ini memakai endpoint chat NVIDIA. Nama model dapat berubah; jika model tidak tersedia, pilih model teks aktif dari katalog NVIDIA.</div>
+</section>
+<section class="card">
+<h2>3. Hasilkan klip video (Cosmos3 Nano)</h2>
+<label>Prompt video</label><textarea id="prompt" placeholder="Jelaskan gerakan, subjek, lokasi, kamera, dan pencahayaan secara spesifik."></textarea>
+<div class="row">
+<div><label>Ukuran video</label><select id="resolution"><option value="480_16_9">480p • 16:9</option><option value="480_9_16">480p • 9:16</option><option value="480_1_1">480p • 1:1</option><option value="720_16_9">720p • 16:9</option><option value="720_9_16">720p • 9:16</option></select></div>
+<div><label>Jumlah frame (uji singkat)</label><select id="frames"><option value="25">25 frame</option><option value="49">49 frame</option><option value="73">73 frame</option></select></div>
+</div>
+<button id="videoBtn">Generate video</button>
+<p class="hint">Cosmos3 Nano adalah model world-foundation/physical-AI. Hasil animasi cerita mungkin tidak selalu seperti film komersial. Endpoint preview memiliki batas dan dapat berubah.</p>
+<div id="status" class="status">Belum ada proses.</div>
+<div id="result"></div>
+</section>
+<section class="card"><h2>Catatan</h2><p class="hint">Versi awal ini adalah prototipe: membuat naskah lewat NVIDIA chat API dan menguji text-to-video Cosmos3 Nano. Belum ada otomatisasi multi-scene, penguncian karakter sempurna, penyimpanan cloud, suara, atau editor film otomatis. Fitur tersebut perlu dibangun dan diuji bertahap.</p></section>
+<footer>AI Video Studio • API Key tidak boleh dibagikan • Gunakan sesuai syarat NVIDIA</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function config(){const backend=$('backend').value.trim().replace(/\/+$/,'');const key=$('key').value.trim();if(!backend||!/^https:\/\//.test(backend))throw Error('Isi alamat backend HTTPS Cloudflare Worker terlebih dahulu.');if(!key)throw Error('Masukkan API Key NVIDIA.');return {backend,key};}
+async function call(path,body){const c=config();const r=await fetch(c.backend+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+c.key},body:JSON.stringify(body)});const data=await r.json().catch(()=>({error:'Respons server bukan JSON'}));if(!r.ok)throw Error(data.error||data.detail||('HTTP '+r.status));return data;}
+$('storyBtn').onclick=async()=>{try{const idea=$('idea').value.trim();if(!idea)throw Error('Tulis ide cerita dulu.');$('storyBtn').disabled=true;$('status').textContent='Sedang meminta NVIDIA membuat naskah...';const data=await call('/api/story',{model:$('chatmodel').value.trim(),idea,style:$('style').value});$('script').value=data.text||JSON.stringify(data,null,2);$('prompt').value=data.video_prompt||data.text||'';$('status').textContent='Naskah selesai. Periksa dan edit prompt sebelum membuat video.';}catch(e){$('status').textContent='Gagal: '+e.message;}finally{$('storyBtn').disabled=false;}};
+$('videoBtn').onclick=async()=>{try{const prompt=$('prompt').value.trim();if(!prompt)throw Error('Isi prompt video terlebih dahulu.');$('videoBtn').disabled=true;$('result').innerHTML='';$('status').textContent='Mengirim permintaan ke Cosmos3 Nano. Proses bisa memerlukan waktu...';const data=await call('/api/video',{prompt,resolution:$('resolution').value,num_frames:Number($('frames').value)});if(!data.video_url)throw Error('Server tidak mengembalikan alamat video.');const v=document.createElement('video');v.controls=true;v.playsInline=true;v.src=data.video_url;$('result').appendChild(v);const a=document.createElement('a');a.href=data.video_url;a.download='nvidia-ai-video.mp4';a.textContent='Unduh video MP4';a.style.display='inline-block';a.style.marginTop='12px';$('result').appendChild(a);$('status').textContent='Video berhasil diterima. Putar atau unduh hasilnya.';}catch(e){$('status').textContent='Gagal: '+e.message+'\\nPeriksa kuota, akses endpoint, nama model, dan log Cloudflare.';}finally{$('videoBtn').disabled=false;}};
+</script></body></html>
